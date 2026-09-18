@@ -6,7 +6,7 @@
 
 ### Initial Access
 
-**Fuzz on both the old and new ports. On port 80, you will find /old, then fuzz /old/ again to find .git. On port 8081, there is a forgot-password function where the API key was removed, so get it from a previous Git commit. Then fuzz the username to get that user's password. Since the login functionality is not working, just try SSH and you will get in. There is another user, and from their home directory we can access some files, including the .mozilla folder, where we can find saved browser login credentials. The username is dev; use the recovered password to SSH as that user. You can then access the previously restricted directory in their home directory and find a binary with the SUID bit enabled. From there, we can continue with a brief buffer overflow explanation to become root.**
+**Fuzz on both the old and new ports. On port 80, you will find /old, then fuzz /old/ again to find .git. On port 8081, there is a forgot-password function where the API key was removed, so get it from a previous Git commit. Then fuzz the username to get that user's password. Since the login functionality is not working, just try SSH and you will get in. There is another user, and from their home directory we can access some files, including the .mozilla folder, where we can find saved browser login credentials. The username is dev; use the recovered password to SSH as that user. You can then access the previously restricted directory in their home directory and find a binary with the SUID bit enabled. From there, we can continue with a brief buffer overflow explanation to become root..**
 
 ### Priv Esc
 
