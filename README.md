@@ -11,3 +11,6 @@ GOT/PLT exploitation → redirect function calls <br>
 Shellcode → execute your own machine code <br>
 ret2libc → use libc functions to get a shell <br>
 Use-after-free, double-free, tcache attacks, etc. <br>
+
+## Read:
+stack-overflow+smashing+ROP+ret2libc - [read](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/Intro2pwn%5Ctools.md)
