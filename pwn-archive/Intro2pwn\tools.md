@@ -151,7 +151,7 @@ buzz@ip-10-49-191-74:~/IntroToPwntools/IntroToPwntools/checksec$
 
 > N
 
-**Does Intro2pwn2 not have PIE (Y or N)?**
+**Does Intro2pwn2 not have PIE (Y/N)?**
 
 *PIE = Position Independent Executable.* <br>
 *It means the executable can be loaded at different memory addresses instead of always being loaded at one fixed address. This works together with ASLR to randomize where the program is loaded, making it harder to predict addresses when exploiting a binary.*
