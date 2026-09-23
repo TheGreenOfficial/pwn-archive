@@ -1,5 +1,6 @@
 ```
-Pwn challenges involve:
+
+There's a lot to learn hhhhhhhh... list..
 
 ════════════════════════════════════════════════════════════════════
 🧱 MEMORY CORRUPTION
