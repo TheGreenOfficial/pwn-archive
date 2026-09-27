@@ -6,7 +6,7 @@
 Target: Ubuntu 24.04, glibc 2.39 (2.39-0ubuntu8.9), x86-64.
 
 Files:
-  vault                    the challenge binary (also served live on your instance)
+  vault                 the challenge binary
   libc.so.6             the exact libc the target runs against
   ld-linux-x86-64.so.2  the matching dynamic loader
 
