@@ -114,7 +114,7 @@ undefined8 main(void)
 }
 ```
 
-**Simplifyed version**
+**Simplifyed version with comments**
 
 ```
 // lockdown(): installs seccomp filter so you can only use these syscalls
