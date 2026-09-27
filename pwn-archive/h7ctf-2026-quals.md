@@ -114,4 +114,44 @@ undefined8 main(void)
 }
 ```
 
-**cont..**
+**Simplifyed version**
+
+```
+// lockdown(): installs seccomp filter so you can only use these syscalls
+void lockdown(void) {
+    // allowlist of syscall numbers:
+    // 0x101 = openat? no wait let's decode:
+    // 0x101 = openat? actually: 257 = openat, 2 = open, 0 = read,
+    // 1 = write, 3 = close, 8 = lseek, 5 = fstat, 0x106 = newfstatat,
+    // 9 = mmap, 0xb = munmap, 0xc = brk, 0xf = rt_sigreturn,
+    // 0x3c = exit, 0xe7 = exit_group
+    // So: basically file I/O syscalls only. No execve, no socket.
+    void *ctx = seccomp_init(0x80000000); // SCMP_ACT_KILL_PROCESS default
+    int allowed[] = {257,2,0,1,3,8,5,0x106,9,11,12,15,60,231};
+    for (int i = 0; i < 14; i++)
+        seccomp_rule_add(ctx, 0x7fff0000 /* SCMP_ACT_ALLOW */, allowed[i], 0);
+    seccomp_load(ctx);
+}
+
+int main(void) {
+    setvbuf(stdout, NULL, 2 /* _IONBF */, 0); // unbuffered stdout
+
+    // mmap(NULL, 4096, PROT_READ|WRITE|EXEC (7), MAP_PRIVATE|MAP_ANON (0x22), -1, 0)
+    void *buf = mmap(NULL, 0x1000, 7, 0x22, -1, 0);
+    //                      ^^^ RWX!  <-- this is the trick
+
+    if (buf == MAP_FAILED) { perror("mmap"); return 1; }
+
+    puts("=== Vault ===");
+    puts("send your shellcode (up to 4096 bytes), then EOF:");
+
+    ssize_t n = read(0, buf, 0x1000); // read raw bytes from stdin
+    if (n < 1) return 1;
+
+    lockdown();  // install seccomp BEFORE running your code
+    ((void(*)())buf)(); // <-- jump into your shellcode
+    return 0;
+}
+```
+
+****
