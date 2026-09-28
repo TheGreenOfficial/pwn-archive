@@ -1,4 +1,4 @@
-## First wave contained 5 pwn challenges.. solved em.. here's how..
+## First wave 5 pwn challenges binary i managed to save.. see how you can solve it.. second wave one i forgot to save.. was playin ctf under pressure at that time lol..
 
 **1st one**:  [download](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/binaries/vault.zip)
 
@@ -575,4 +575,167 @@ skid@TheGreen:~/ctfs/new/pwn$
 
 ---
 
+**4th one**:  [download](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/binaries/ledger.zip)
 
+**first look + sec check**
+
+```
+skid@TheGreen:~/ctfs/new/pwn$ ls
+ld-linux-x86-64.so.2  ledger  libc.so.6  README.txt
+skid@TheGreen:~/ctfs/new/pwn$ ./ledger
+
+1) add  2) delete  3) edit  4) view  5) exit
+> 5
+skid@TheGreen:~/ctfs/new/pwn$
+skid@TheGreen:~/ctfs/new/pwn$ pwn checksec ./ledger
+[*] '/home/skid/ctfs/new/pwn/ledger'
+    Arch:       amd64-64-little
+    RELRO:      Partial RELRO
+    Stack:      Canary found
+    NX:         NX enabled
+    PIE:        No PIE (0x3fe000)
+    RUNPATH:    '.'
+    SHSTK:      Enabled
+    IBT:        Enabled
+    Stripped:   No
+skid@TheGreen:~/ctfs/new/pwn$
+```
+
+**Decompile in ghidra**
+
+```
+====================================================================================================
+FUNCTION: audit
+ADDRESS : 004012b6
+====================================================================================================
+void audit(void)
+{
+  FILE *__stream;
+  long in_FS_OFFSET;
+  char local_68 [88];
+  long local_10;
+  
+  local_10 = *(long *)(in_FS_OFFSET + 0x28);
+  __stream = fopen("/flag","r");
+  if (__stream == (FILE *)0x0) {
+    puts("[!] flag missing");
+  }
+  else {
+    fgets(local_68,0x50,__stream);
+    fclose(__stream);
+    printf("[audit] %s\n",local_68);
+  }
+  if (local_10 != *(long *)(in_FS_OFFSET + 0x28)) {
+                    /* WARNING: Subroutine does not return */
+    __stack_chk_fail();
+  }
+  return;
+}
+====================================================================================================
+FUNCTION: menu
+ADDRESS : 00401358
+====================================================================================================
+void menu(void)
+{
+  char *pcVar1;
+  long in_FS_OFFSET;
+  char local_28 [24];
+  long local_10;
+  
+  local_10 = *(long *)(in_FS_OFFSET + 0x28);
+  puts("\n1) add  2) delete  3) edit  4) view  5) exit");
+  printf("> ");
+  pcVar1 = fgets(local_28,0x10,stdin);
+  if (pcVar1 == (char *)0x0) {
+                    /* WARNING: Subroutine does not return */
+    exit(0);
+  }
+  atoi(local_28);
+  if (local_10 != *(long *)(in_FS_OFFSET + 0x28)) {
+                    /* WARNING: Subroutine does not return */
+    __stack_chk_fail();
+  }
+  return;
+}
+====================================================================================================
+FUNCTION: idx
+ADDRESS : 004013df
+====================================================================================================
+int idx(void)
+{
+  int iVar1;
+  char *pcVar2;
+  long in_FS_OFFSET;
+  char local_28 [24];
+  long local_10;
+  
+  local_10 = *(long *)(in_FS_OFFSET + 0x28);
+  printf("index: ");
+  pcVar2 = fgets(local_28,0x10,stdin);
+  if (pcVar2 == (char *)0x0) {
+                    /* WARNING: Subroutine does not return */
+    exit(0);
+  }
+  iVar1 = atoi(local_28);
+  if ((iVar1 < 0) || (0xf < iVar1)) {
+    iVar1 = -1;
+  }
+  if (local_10 == *(long *)(in_FS_OFFSET + 0x28)) {
+    return iVar1;
+  }
+                    /* WARNING: Subroutine does not return */
+  __stack_chk_fail();
+}
+====================================================================================================
+FUNCTION: main
+ADDRESS : 00401470
+====================================================================================================
+undefined8 main(void)
+{
+  undefined4 uVar1;
+  int iVar2;
+  void *pvVar3;
+  
+  setvbuf(stdout,(char *)0x0,2,0);
+  do {
+    uVar1 = menu();
+    switch(uVar1) {
+    default:
+      puts("?");
+      break;
+    case 1:
+      iVar2 = idx();
+      if (-1 < iVar2) {
+        pvVar3 = malloc(0x50);
+        *(void **)(notes + (long)iVar2 * 8) = pvVar3;
+        printf("note: ");
+        read(0,*(void **)(notes + (long)iVar2 * 8),0x50);
+      }
+      break;
+    case 2:
+      iVar2 = idx();
+      if (-1 < iVar2) {
+        free(*(void **)(notes + (long)iVar2 * 8));
+      }
+      break;
+    case 3:
+      iVar2 = idx();
+      if ((-1 < iVar2) && (*(long *)(notes + (long)iVar2 * 8) != 0)) {
+        printf("note: ");
+        read(0,*(void **)(notes + (long)iVar2 * 8),0x50);
+      }
+      break;
+    case 4:
+      iVar2 = idx();
+      if ((-1 < iVar2) && (*(long *)(notes + (long)iVar2 * 8) != 0)) {
+        write(1,*(void **)(notes + (long)iVar2 * 8),0x50);
+      }
+      break;
+    case 5:
+      return 0;
+    }
+  } while( true );
+}
+```
+
+****
