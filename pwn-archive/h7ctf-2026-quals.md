@@ -439,3 +439,93 @@ skid@TheGreen:~/ctfs/new/pwn$
 
 ---
 
+**3rd one**:  [download](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/binaries/manifest.zip)
+
+**First look of the binary**
+
+```
+skid@TheGreen:~/ctfs/new/pwn$ ls
+ld-linux-x86-64.so.2  libc.so.6  manifest  README.txt
+skid@TheGreen:~/ctfs/new/pwn$ ./manifest
+
+1) leave feedback
+2) view manifest
+3) exit
+skid@TheGreen:~/ctfs/new/pwn$
+```
+
+**decompiling using ghidra**
+
+```
+====================================================================================================
+FUNCTION: view_manifest
+ADDRESS : 00401236
+====================================================================================================
+void view_manifest(void)
+{
+  char local_98 [136];
+  FILE *local_10;
+  
+  if (is_admin == 0) {
+    puts("[!] admin clearance required.");
+  }
+  else {
+    local_10 = fopen("/flag","r");
+    if (local_10 == (FILE *)0x0) {
+      puts("[!] flag file missing");
+    }
+    else {
+      fgets(local_98,0x80,local_10);
+      fclose(local_10);
+      printf("[manifest] clearance code: %s\n",local_98);
+    }
+  }
+  return;
+}
+
+====================================================================================================
+FUNCTION: feedback
+ADDRESS : 004012d9
+====================================================================================================
+void feedback(void)
+{
+  char local_d8 [208];
+  
+  memset(local_d8,0,200);
+  puts("Leave feedback for the terminal operators:");
+  read(0,local_d8,199);
+  printf("You said: ");
+  printf(local_d8);
+  puts("");
+  return;
+}
+====================================================================================================
+FUNCTION: main
+ADDRESS : 00401363
+====================================================================================================
+undefined8 main(void)
+{
+  char *pcVar1;
+  char local_28 [28];
+  int local_c;
+  
+  setvbuf(stdout,(char *)0x0,2,0);
+  while( true ) {
+    while( true ) {
+      puts("\n1) leave feedback\n2) view manifest\n3) exit");
+      pcVar1 = fgets(local_28,0x10,stdin);
+      if (pcVar1 == (char *)0x0) {
+        return 0;
+      }
+      local_c = atoi(local_28);
+      if (local_c != 1) break;
+      feedback();
+    }
+    if (local_c != 2) break;
+    view_manifest();
+  }
+  return 0;
+}
+```
+
+**view_manifest() clearly shows its ret2win type chall and **
