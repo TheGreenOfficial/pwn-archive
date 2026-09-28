@@ -828,4 +828,53 @@ skid@TheGreen:~/ctfs/new/pwn$
 
 ---
 
-**5th one**:  [download]()
+**5th one**:  [download](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/binaries/dispatch.zip)
+
+**first look**
+
+```
+skid@TheGreen:~/ctfs/new/pwn$ ./dispatch
+=== Sparrow Freight dispatch terminal ===
+dispatch> enter waybill number:
+eyahhhhhhhhh
+waybill logged.
+skid@TheGreen:~/ctfs/new/pwn$
+```
+
+**Ghidra decompiled**
+
+```
+====================================================================================================
+FUNCTION: pop_rdi_ret
+ADDRESS : 00401176
+====================================================================================================
+void pop_rdi_ret(void)
+{
+	return;
+}
+====================================================================================================
+FUNCTION: vuln
+ADDRESS : 00401178
+====================================================================================================
+void vuln(void)
+{
+	undefined1 local_48 [64];
+	puts("dispatch> enter waybill number:");
+	read(0,local_48,512);
+	puts("waybill logged.");
+	return;
+}
+====================================================================================================
+FUNCTION: main
+ADDRESS : 004011bb
+====================================================================================================
+undefined8 main(void)
+{
+	setvbuf(stdout,(char *)0x0,2,0);
+	puts("=== Sparrow Freight dispatch terminal ===");
+	vuln();
+	return 0;
+}
+```
+
+****
