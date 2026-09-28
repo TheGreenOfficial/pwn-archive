@@ -927,7 +927,7 @@ p.interactive()
 
 **running payload**
 
-```
+```bash
 skid@TheGreen:~/ctfs/new/pwn$ python3 e.py
 [+] Starting local process './dispatch': pid 5345
 [*] libc base = 0x7c16de800000
