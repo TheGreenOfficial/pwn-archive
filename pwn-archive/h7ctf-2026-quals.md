@@ -2,7 +2,7 @@
 
 **1st one**:  [download](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/binaries/vault.zip)
 
-```Read-Readme
+```bash
 Target: Ubuntu 24.04, glibc 2.39 (2.39-0ubuntu8.9), x86-64.
 
 Files:
