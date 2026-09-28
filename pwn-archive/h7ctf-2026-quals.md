@@ -528,4 +528,4 @@ undefined8 main(void)
 }
 ```
 
-**view_manifest() clearly shows its ret2win type chall and **
+****
