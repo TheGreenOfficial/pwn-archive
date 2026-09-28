@@ -23,13 +23,13 @@ do dis also : create flag.txt in current dir and put fah{congrutalion}
 
 **patch elf**
 
-```
+```bash
 skid@TheGreen:~/ctfs/new$  patchelf --set-interpreter ./ld-linux-x86-64.so.2 --set-rpath . ./vault
 ```
 
 **First run of binary**
 
-```
+```bash
 skid@TheGreen:~/ctfs/new$ ./vault
 === Vault ===
 send your shellcode (up to 4096 bytes), then EOF:
@@ -40,7 +40,7 @@ skid@TheGreen:~/ctfs/new$
 
 **Ghidra decompiled view**
 
-```
+```c
 ====================================================================================================
 FUNCTION: lockdown
 ADDRESS : 00401236
@@ -116,7 +116,7 @@ undefined8 main(void)
 
 **Simplifyed version with comments**
 
-```
+```c
 // lockdown(): installs seccomp filter so you can only use these syscalls
 void lockdown(void) {
     // allowlist of syscall numbers:
@@ -156,7 +156,7 @@ int main(void) {
 
 **Exploit writing..**
 
-```
+```py
 from pwn import *
 
 context.arch = "amd64"
@@ -203,7 +203,7 @@ print(io.recvall().decode())
 
 **exploit run**
 
-```
+```bash
 skid@TheGreen:~/ctfs/new$ ls
 e.py  flag.txt  ld-linux-x86-64.so.2  libc.so.6  README.txt  vault  vault.ghidra-out  vault.zip
 skid@TheGreen:~/ctfs/new$ python3 e.py
@@ -224,7 +224,7 @@ skid@TheGreen:~/ctfs/new$
 
 **first look of binary**
 
-```
+```bash
 skid@TheGreen:~/ctfs/new/pwn$ ./checkpoint
 === Sparrow Freight border checkpoint ===
 State your name for the log:
@@ -236,7 +236,7 @@ skid@TheGreen:~/ctfs/new/pwn$
 
 **Decompiled view in ghidra**
 
-```
+```c
 ====================================================================================================
 FUNCTION: grant_access
 ADDRESS : 00401216
@@ -289,7 +289,7 @@ undefined8 main(void)
 
 **alr checkpoint()'s read() has buf overflow and its ret2win we have to return to grant_access() function. Let's use pwn checksec**
 
-```
+```bash
 skid@TheGreen:~/ctfs/new/pwn$ pwn checksec ./checkpoint
 [*] '/home/skid/ctfs/new/pwn/checkpoint'
     Arch:       amd64-64-little
@@ -306,7 +306,7 @@ skid@TheGreen:~/ctfs/new/pwn$
 
 **No PIE gud.. let's find out  write exploit for this ret2win..**
 
-```
+```bash
 skid@TheGreen:~/ctfs/new/pwn$ gdb ./checkpoint
 GNU gdb (Debian 17.2-1+b1) 17.2
 Copyright (C) 2025 Free Software Foundation, Inc.
@@ -395,7 +395,7 @@ skid@TheGreen:~/ctfs/new/pwn$ pwn cyclic -l qaaar
 skid@TheGreen:~/ctfs/new/pwn$
 ```
 
-```
+```py
 #!/usr/bin/env python3
 import sys
 from pwn import *
@@ -421,7 +421,7 @@ p.interactive()
 
 **Running exploit to get flag..**
 
-```
+```bash
 skid@TheGreen:~/ctfs/new/pwn$ python3 e.py
 [*] Running local binary process...
 [+] Starting local process './checkpoint': pid 1792
@@ -443,7 +443,7 @@ skid@TheGreen:~/ctfs/new/pwn$
 
 **First look of the binary**
 
-```
+```bash
 skid@TheGreen:~/ctfs/new/pwn$ ls
 ld-linux-x86-64.so.2  libc.so.6  manifest  README.txt
 skid@TheGreen:~/ctfs/new/pwn$ ./manifest
@@ -456,7 +456,7 @@ skid@TheGreen:~/ctfs/new/pwn$
 
 **decompiling using ghidra**
 
-```
+```c
 ====================================================================================================
 FUNCTION: view_manifest
 ADDRESS : 00401236
@@ -565,7 +565,7 @@ p.close()
 
 **running exploit**
 
-```
+```bash
 skid@TheGreen:~/ctfs/new/pwn$ python3 e.py
 [+] Starting local process './manifest': pid 3536
 flag{congruletion}
@@ -810,7 +810,7 @@ print(p.recvall(timeout=3).decode(errors='replace'))
 
 **running exploit..**
 
-```
+```bash
 skid@TheGreen:~/ctfs/new/pwn$ python3 e.py
 [+] Starting local process './ledger': pid 4495
 [*] A>>12       = 0x710a
