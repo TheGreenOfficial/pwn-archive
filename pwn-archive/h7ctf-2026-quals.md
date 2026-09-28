@@ -528,7 +528,7 @@ undefined8 main(void)
 }
 ```
 
-**format string bug, writing to is_admin addr must not be 0 write anything check pass get flag..**
+**format string bug, writing to is_admin addr must not be 0 write anything check pass && get flag..**
 
 ```py
 #!/usr/bin/env python3
