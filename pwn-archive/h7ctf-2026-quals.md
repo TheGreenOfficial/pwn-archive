@@ -218,4 +218,92 @@ skid@TheGreen:~/ctfs/new$
 
 **Try it yourself binary is there its self explaned..**
 
-**2nd one**:  [download]()
+**2nd one**:  [download](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/binaries/checkpoint.zip)
+
+**first look of binary**
+
+```
+skid@TheGreen:~/ctfs/new/pwn$ ./checkpoint
+=== Sparrow Freight border checkpoint ===
+State your name for the log:
+asdfasdf
+Access denied, asdfasdf
+���Mu. Turn back.
+skid@TheGreen:~/ctfs/new/pwn$ 
+```
+
+**Decompiled view in ghidra**
+
+```
+====================================================================================================
+FUNCTION: grant_access
+ADDRESS : 00401216
+====================================================================================================
+void grant_access(void)
+
+{
+  char local_68 [88];
+  FILE *local_10;
+  
+  local_10 = fopen("/flag","r");
+  if (local_10 == (FILE *)0x0) {
+    puts("[!] flag file missing - tell an admin");
+  }
+  else {
+    fgets(local_68,0x50,local_10);
+    fclose(local_10);
+    printf("ACCESS GRANTED: %s\n",local_68);
+    fflush(stdout);
+  }
+  return;
+}
+====================================================================================================
+FUNCTION: checkpoint
+ADDRESS : 004012a4
+====================================================================================================
+void checkpoint(void)
+
+{
+  undefined1 local_48 [64];
+  
+  puts("=== Sparrow Freight border checkpoint ===");
+  puts("State your name for the log:");
+  read(0,local_48,256);
+  printf("Access denied, %s. Turn back.\n",local_48);
+  return;
+}
+====================================================================================================
+FUNCTION: main
+ADDRESS : 00401302
+====================================================================================================
+undefined8 main(void)
+
+{
+  setvbuf(stdout,(char *)0x0,2,0);
+  checkpoint();
+  return 0;
+}
+```
+
+**alr checkpoint()'s read() has buf overflow and its ret2win we have to return to grant_access() function. Let's use pwn checksec**
+
+```
+skid@TheGreen:~/ctfs/new/pwn$ pwn checksec ./checkpoint
+[*] '/home/skid/ctfs/new/pwn/checkpoint'
+    Arch:       amd64-64-little
+    RELRO:      Partial RELRO
+    Stack:      No canary found
+    NX:         NX enabled
+    PIE:        No PIE (0x3fe000)
+    RUNPATH:    '.'
+    SHSTK:      Enabled
+    IBT:        Enabled
+    Stripped:   No
+skid@TheGreen:~/ctfs/new/pwn$
+```
+
+**No PIE gud.. lets write exploit for this ret2win..**
+
+```
+
+```
