@@ -1,6 +1,6 @@
 **CSS-CTF-2026 pwn chall solution..**
 
-[binary](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/binaries/sector01_handout.zip)
+[download: binary](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/binaries/sector01_handout.zip)
 
 *initial checks*
 
