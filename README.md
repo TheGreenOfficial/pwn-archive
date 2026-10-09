@@ -18,4 +18,4 @@ Use-after-free, double-free, tcache attacks, etc. <br>
 *[read - chronicle](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/chronicle.md) - stack-overflow+smashing+ROP+ret2libc* <br>
 *[read - PWN101](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/PWN101.md) - format-string+stack-overflow+smashing+GOT/PLT+ROP+shellcode+ret2libc* <br>
 *[read - h7ctf-2026-quals](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/h7ctf-2026-quals.md) - jmp2shellcode,format-string,UAF+tcache,ret2libc* <br>
-*[read - css-ctf-2026](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/css-ctf-2026-pwn.md) - off-by-one,  <br>
+*[read - css-ctf-2026](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/css-ctf-2026-pwn.md) - off-by-one,* <br>
