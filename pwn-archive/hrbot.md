@@ -1,5 +1,3 @@
-## Binray my friend dropped in chat didn't bother askin form where it came but its interesting..
-
 [download: binary](https://github.com/TheGreenOfficial/pwn-archive/blob/main/pwn-archive/binaries/hrbot)
 
 *first look*
